@@ -58,7 +58,7 @@ class LSTMModel:
         # inputs and targets are 2D tensors of shape
         self.inputs = tf.compat.v1.placeholder(tf.int32, [self.batch_size, self.seq_len])
         self.targets = tf.compat.v1.placeholder(tf.int32, [self.batch_size, self.seq_len])
-        self.initial_state = self.cell.zero_state(self.batch_size, tf.float32)
+        self.initial_state = self.cell.get_initial_state(tf.Variable(tf.random.normal([self.batch_size, self.seq_len]), dtype=tf.float32))
 
         ##
         # Variables
