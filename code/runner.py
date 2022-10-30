@@ -22,7 +22,7 @@ class LyricGenRunner:
         @param prime_text: The text with which to start the test sequence.
         """
 
-        self.sess = tf.Session()
+        self.sess = tf.compat.v1.Session()
         self.artist_name = artist_name
 
         print ('Process data...')
