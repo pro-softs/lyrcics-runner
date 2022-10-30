@@ -1,8 +1,8 @@
 # inspired by https://github.com/hunkim/word-rnn-tensorflow
 
 import tensorflow as tf
-import tensorflow_addons as tfa
-
+from tensorflow.python.ops import rnn_cell
+from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq
 import numpy as np
 
 import constants as c
@@ -35,8 +35,6 @@ class LSTMModel:
         self.build_graph(test)
 
     def build_graph(self, test):
-        tf.compat.v1.disable_eager_execution()
-
         """
         Builds an LSTM graph in TensorFlow.
         """
@@ -48,34 +46,34 @@ class LSTMModel:
         # LSTM Cells
         ##
 
-        lstm_cell = tf.keras.layers.LSTMCell(self.cell_size)
-        self.cell = tf.keras.layers.StackedRNNCells([lstm_cell for _ in range(self.num_layers)])
+        lstm_cell = rnn_cell.BasicLSTMCell(self.cell_size)
+        self.cell = rnn_cell.MultiRNNCell([lstm_cell] * self.num_layers)
 
         ##
         # Data
         ##
 
         # inputs and targets are 2D tensors of shape
-        self.inputs = tf.compat.v1.placeholder(tf.int32, [self.batch_size, self.seq_len])
-        self.targets = tf.compat.v1.placeholder(tf.int32, [self.batch_size, self.seq_len])
-        self.initial_state = self.cell.get_initial_state(tf.Variable(tf.random.normal([self.batch_size, self.seq_len]), dtype=tf.float32))
+        self.inputs = tf.placeholder(tf.int32, [self.batch_size, self.seq_len])
+        self.targets = tf.placeholder(tf.int32, [self.batch_size, self.seq_len])
+        self.initial_state = self.cell.zero_state(self.batch_size, tf.float32)
 
         ##
         # Variables
         ##
-        with tf.compat.v1.variable_scope('lstm_vars'):
-            self.ws = tf.compat.v1.get_variable('ws', [self.cell_size, self.vocab_size])
-            self.bs = tf.compat.v1.get_variable('bs', [self.vocab_size])  # TODO: initializer?
-            with tf.compat.v1.device('/cpu:0'): # put on CPU to parallelize for faster training/
-                self.embeddings = tf.compat.v1.get_variable('embeddings', [self.vocab_size, self.cell_size])
+        with tf.variable_scope('lstm_vars'):
+            self.ws = tf.get_variable('ws', [self.cell_size, self.vocab_size])
+            self.bs = tf.get_variable('bs', [self.vocab_size])  # TODO: initializer?
+            with tf.device('/cpu:0'): # put on CPU to parallelize for faster training/
+                self.embeddings = tf.get_variable('embeddings', [self.vocab_size, self.cell_size])
 
                 # get embeddings for all input words
-                input_embeddings = tf.compat.v1.nn.embedding_lookup(self.embeddings, self.inputs)
+                input_embeddings = tf.nn.embedding_lookup(self.embeddings, self.inputs)
                 # The split splits this tensor into a seq_len long list of 3D tensors of shape
                 # [batch_size, 1, rnn_size]. The squeeze removes the 1 dimension from the 1st axis
                 # of each tensor
-                inputs_split = tf.compat.v1.split(input_embeddings, self.seq_len, 1)
-                inputs_split = [tf.compat.v1.squeeze(input_, [1]) for input_ in inputs_split]
+                inputs_split = tf.split(input_embeddings, self.seq_len, 1)
+                inputs_split = [tf.squeeze(input_, [1]) for input_ in inputs_split]
 
 
                 # inputs_split looks like this:
@@ -94,16 +92,16 @@ class LSTMModel:
                 # ]
 
         def loop(prev, _):
-            prev = tf.compat.v1.matmul(prev, self.ws) + self.bs
-            prev_symbol = tf.compat.v1.stop_gradient(tf.argmax(prev, 1))
-            return tf.compat.v1.nn.embedding_lookup(self.embeddings, prev_symbol)
+            prev = tf.matmul(prev, self.ws) + self.bs
+            prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
+            return tf.nn.embedding_lookup(self.embeddings, prev_symbol)
 
-        lstm_outputs_split, self.final_state = tfa.seq2seq.rnn_decoder(inputs_split,
+        lstm_outputs_split, self.final_state = seq2seq.rnn_decoder(inputs_split,
                                                                    self.initial_state,
                                                                    self.cell,
                                                                    loop_function=loop if test else None,
                                                                    scope='lstm_vars')
-        lstm_outputs = tf.compat.v1.reshape(tf.concat(lstm_outputs_split, 1), [-1, self.cell_size])
+        lstm_outputs = tf.reshape(tf.concat(lstm_outputs_split, 1), [-1, self.cell_size])
 
         # outputs looks like this:
         # [
@@ -134,21 +132,21 @@ class LSTMModel:
         #     [batchElt<batch_size - 1>_outputEmbedding<seq_len - 1>]
         # ])
 
-        logits = tf.compat.v1.matmul(lstm_outputs, self.ws) + self.bs
-        self.probs = tf.compat.v1.nn.softmax(logits)
+        logits = tf.matmul(lstm_outputs, self.ws) + self.bs
+        self.probs = tf.nn.softmax(logits)
 
         ##
         # Train
         ##
 
-        total_loss = tfa.seq2seq.sequence_loss_by_example([logits],
+        total_loss = seq2seq.sequence_loss_by_example([logits],
                                                       [tf.reshape(self.targets, [-1])],
                                                       [tf.ones([self.batch_size * self.seq_len])],
                                                       self.vocab_size)
-        self.loss = tf.compat.v1.reduce_sum(total_loss) / self.batch_size / self.seq_len
+        self.loss = tf.reduce_sum(total_loss) / self.batch_size / self.seq_len
 
-        self.global_step = tf.compat.v1.Variable(0, trainable=False, name='global_step')
-        self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=c.L_RATE, name='optimizer')
+        self.global_step = tf.Variable(0, trainable=False, name='global_step')
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=c.L_RATE, name='optimizer')
         self.train_op = self.optimizer.minimize(self.loss,
                                                 global_step=self.global_step,
                                                 name='train_op')

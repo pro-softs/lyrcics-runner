@@ -29,7 +29,7 @@ def process_sample(string):
 
 def save(artist, model_path, num_save):
     sample_save_dir = c.get_dir('../save/samples/')
-    sess = tf.compat.v1.Session()
+    sess = tf.Session()
 
     print (artist)
 
