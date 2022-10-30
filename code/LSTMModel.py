@@ -35,6 +35,8 @@ class LSTMModel:
         self.build_graph(test)
 
     def build_graph(self, test):
+        tf.compat.v1.disable_eager_execution()
+
         """
         Builds an LSTM graph in TensorFlow.
         """
@@ -47,9 +49,7 @@ class LSTMModel:
         ##
 
         lstm_cell = tf.keras.layers.LSTMCell(self.cell_size)
-        self.cell = tf.keras.layers.StackedRNNCells([lstm_cell] * self.num_layers)
-
-        tf.compat.v1.disable_eager_execution()
+        self.cell = tf.keras.layers.StackedRNNCells([lstm_cell for _ in range(num_layers)])
 
         ##
         # Data
