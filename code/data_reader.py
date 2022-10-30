@@ -2,6 +2,7 @@ import numpy as np
 import os
 import random
 from collections import Counter
+from functools import reduce
 
 import constants as c
 
