@@ -1,8 +1,8 @@
 # inspired by https://github.com/hunkim/word-rnn-tensorflow
 
 import tensorflow as tf
-from tensorflow.python.ops import rnn_cell
-from tensorflow.contrib.legacy_seq2seq.python.ops import seq2seq
+import tensorflow_addons as tfa
+
 import numpy as np
 
 import constants as c
@@ -46,8 +46,8 @@ class LSTMModel:
         # LSTM Cells
         ##
 
-        lstm_cell = rnn_cell.BasicLSTMCell(self.cell_size)
-        self.cell = rnn_cell.MultiRNNCell([lstm_cell] * self.num_layers)
+        lstm_cell = tf.keras.layers.LSTMCell(self.cell_size)
+        self.cell = tf.keras.layers.StackedRNNCells([lstm_cell] * self.num_layers)
 
         ##
         # Data
@@ -96,7 +96,7 @@ class LSTMModel:
             prev_symbol = tf.stop_gradient(tf.argmax(prev, 1))
             return tf.nn.embedding_lookup(self.embeddings, prev_symbol)
 
-        lstm_outputs_split, self.final_state = seq2seq.rnn_decoder(inputs_split,
+        lstm_outputs_split, self.final_state = tfa.seq2seq.rnn_decoder(inputs_split,
                                                                    self.initial_state,
                                                                    self.cell,
                                                                    loop_function=loop if test else None,
@@ -139,7 +139,7 @@ class LSTMModel:
         # Train
         ##
 
-        total_loss = seq2seq.sequence_loss_by_example([logits],
+        total_loss = tfa.seq2seq.sequence_loss_by_example([logits],
                                                       [tf.reshape(self.targets, [-1])],
                                                       [tf.ones([self.batch_size * self.seq_len])],
                                                       self.vocab_size)
