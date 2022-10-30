@@ -49,6 +49,8 @@ class LSTMModel:
         lstm_cell = tf.keras.layers.LSTMCell(self.cell_size)
         self.cell = tf.keras.layers.StackedRNNCells([lstm_cell] * self.num_layers)
 
+        tf.compat.v1.disable_eager_execution()
+
         ##
         # Data
         ##
