@@ -1,8 +1,4 @@
-# encore.ai
 Generate new lyrics in the style of any artist using Deep Learning. <br/>
-Winner of "Best Machine Learning Hack" at HackMIT!
-
-Check it out at http://encore.ai.
 
 <img src="https://github.com/dyelax/encore.ai/blob/development/assets/devpost_img_2-01.png" style="width: 100%"/>
 
